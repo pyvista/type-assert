@@ -8,7 +8,7 @@ its cases live::
     checkers = ['mypy', 'pyright']
 
 The same settings are read from pytest's own configuration as ``type_assert_*`` ini
-options, which take precedence.
+options when the table leaves them out; ``-o`` overrides both.
 
 Each case file then collects as a test file of its own: one `setup` test for the
 lines that are not cases, one runtime test per case, and one static test per case
@@ -125,16 +125,16 @@ def _table(config: pytest.Config) -> dict[str, str | list[str]]:
     return table
 
 
-def _ini_is_set(config: pytest.Config, name: str) -> bool:
-    """Tell whether an ini option is given in pytest's configuration or with `-o`."""
+def _overridden(config: pytest.Config, name: str) -> bool:
+    """Tell whether an ini option is given on the command line with `-o`."""
     overrides = config.getoption('override_ini', None) or []
-    return name in config.inicfg or any(item.split('=', 1)[0] == name for item in overrides)
+    return any(item.split('=', 1)[0] == name for item in overrides)
 
 
 def _list_setting(config: pytest.Config, ini_name: str, key: str) -> list[str]:
-    """Return a list setting from pytest's configuration, else the table, else the default."""
+    """Return a list setting from `-o`, else the table, else pytest's configuration."""
     value = _table(config).get(key)
-    if isinstance(value, list) and not _ini_is_set(config, ini_name):
+    if isinstance(value, list) and not _overridden(config, ini_name):
         return value
     return [str(item) for item in config.getini(ini_name)]
 
@@ -153,7 +153,7 @@ def checker_args(config: pytest.Config, checker_name: str) -> list[str]:
 def cases_dir(config: pytest.Config) -> Path | None:
     """Return the configured cases directory, or `None` when unset."""
     value = _table(config).get('cases')
-    if not isinstance(value, str) or _ini_is_set(config, CASES_INI):
+    if not isinstance(value, str) or _overridden(config, CASES_INI):
         value = str(config.getini(CASES_INI))
     configured = value.strip()
     if not configured:

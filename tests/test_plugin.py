@@ -495,9 +495,16 @@ class TestToolTable:
         result = table_project(table, self.UNUSED_IGNORE).runpytest()
         result.assert_outcomes(passed=2, failed=1)
 
-    def test_an_ini_option_takes_precedence(self, table_project):
+    def test_the_table_takes_precedence_over_an_ini_option(self, table_project):
         ini = "\n[tool.pytest.ini_options]\ntype_assert_checkers = 'pyright'\n"
         pytester = table_project("cases = 'cases'\ncheckers = ['mypy']\n", ini=ini)
+        result = pytester.runpytest('--collect-only', '-q')
+        assert any('static: mypy' in line for line in result.outlines)
+        assert not any('static: pyright' in line for line in result.outlines)
+
+    def test_an_ini_option_fills_a_key_the_table_leaves_out(self, table_project):
+        ini = "\n[tool.pytest.ini_options]\ntype_assert_checkers = 'pyright'\n"
+        pytester = table_project("cases = 'cases'\n", ini=ini)
         result = pytester.runpytest('--collect-only', '-q')
         assert any('static: pyright' in line for line in result.outlines)
         assert not any('static: mypy' in line for line in result.outlines)

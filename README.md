@@ -38,9 +38,9 @@ cases = 'tests/typing/cases'
 ```
 
 Each setting can also be given as a pytest ini option (`type_assert_cases`,
-`type_assert_checkers`, `type_assert_<checker>_args`), which takes precedence over the
-table. pytest checks only its own options, so the table stays valid where the plugin is
-not installed.
+`type_assert_checkers`, `type_assert_<checker>_args`). The table wins over an ini option,
+and `-o` on the command line wins over both. pytest checks only its own options, so the
+table stays valid where the plugin is not installed.
 
 Every `.py` file under that directory is a case file, subdirectories included, so cases
 can be grouped the way the package they exercise is.
