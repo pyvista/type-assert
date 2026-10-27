@@ -1,6 +1,6 @@
 """The one assertion a typing case makes.
 
-To a type checker `assert_types` is `typing_extensions.assert_type`; at runtime it
+To a type checker `assert_types` is `typing.assert_type`; at runtime it
 is a real checker. See the module body for why that works.
 
 The runtime check is assignability, read strictly in two places where a declared
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     # `expected` *exactly*, not merely be assignable to it. Verified against both
     # mypy and pyright. At runtime the definition below runs instead and checks the
     # value, so one call covers both halves and they cannot drift apart.
-    from typing_extensions import assert_type as assert_types
+    from typing import assert_type as assert_types
 else:
     from pycroscope.checker import Checker
     from pycroscope.runtime import CanAssignError

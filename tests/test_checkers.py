@@ -41,10 +41,10 @@ assert_types(len([1]), int)
 """
 
 AFTER_NEVER = """\
+from typing import Never
 from typing import NoReturn
 
 from type_assert import assert_types
-from typing_extensions import Never
 
 
 def boom() -> NoReturn:
