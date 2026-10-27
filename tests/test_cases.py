@@ -187,7 +187,7 @@ class TestQuotedTypes:
     NEVER = (
         'from typing import TYPE_CHECKING\n\n'
         'if TYPE_CHECKING:\n'
-        '    from typing_extensions import Never\n\n\n'
+        '    from typing import Never\n\n\n'
         'def empty() -> list[Never]:\n'
         '    return []\n\n\n'
         "assert_types(empty(), 'list[Never]')\n"
@@ -341,8 +341,8 @@ class TestNeverCases:
     """A case expecting `Never` runs its expression and asserts it does not return."""
 
     RAISES = (
-        'from typing import NoReturn\n'
-        'from typing_extensions import Never\n\n'
+        'from typing import Never\n'
+        'from typing import NoReturn\n\n'
         'def boom() -> NoReturn:\n'
         "    raise RuntimeError('nope')\n\n"
         'def fine() -> int:\n'
