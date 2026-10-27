@@ -455,3 +455,86 @@ def test_a_case_after_one_that_never_returns_is_still_checked(project, checker):
     result = project(AFTER_NEVER, checkers=checker).runpytest()
     result.assert_outcomes(passed=5, failed=2)
     result.stdout.fnmatch_lines([f'*len([[]1]) -> str [[]static: {checker}]*'])
+
+
+class TestToolTable:
+    """The settings can live in a `[tool.type-assert]` table of pyproject.toml."""
+
+    UNUSED_IGNORE = TestCheckerConfiguration.UNUSED_IGNORE
+
+    @pytest.fixture
+    def table_project(self, pytester, monkeypatch):
+        """Return a helper that configures a project through the table alone."""
+        monkeypatch.setenv('MYPYPATH', str(REPO_ROOT))
+        pytester.path.joinpath('pyrightconfig.json').write_text(
+            json.dumps({'extraPaths': [str(REPO_ROOT)]}), encoding='utf-8'
+        )
+
+        def _project(table, source=CLEAN, ini=''):
+            pytester.makepyprojecttoml(f'[tool.type-assert]\n{table}{ini}')
+            directory = pytester.path / 'cases'
+            directory.mkdir(exist_ok=True)
+            directory.joinpath('sample.py').write_text(source, encoding='utf-8')
+            return pytester
+
+        return _project
+
+    def test_the_cases_directory_is_read_from_the_table(self, table_project):
+        result = table_project("cases = 'cases'\n").runpytest()
+        result.assert_outcomes(passed=5)
+
+    def test_the_checkers_are_read_from_the_table(self, table_project):
+        pytester = table_project("cases = 'cases'\ncheckers = ['mypy', 'pyright']\n")
+        result = pytester.runpytest('--collect-only', '-q')
+        collected = set(result.outlines)
+        assert 'cases/sample.py::len([1]) -> int [static: mypy]' in collected
+        assert 'cases/sample.py::len([1]) -> int [static: pyright]' in collected
+
+    def test_extra_checker_arguments_are_read_from_the_table(self, table_project):
+        table = "cases = 'cases'\nmypy-args = ['--warn-unused-ignores']\n"
+        result = table_project(table, self.UNUSED_IGNORE).runpytest()
+        result.assert_outcomes(passed=2, failed=1)
+
+    def test_the_table_takes_precedence_over_an_ini_option(self, table_project):
+        ini = "\n[tool.pytest.ini_options]\ntype_assert_checkers = 'pyright'\n"
+        pytester = table_project("cases = 'cases'\ncheckers = ['mypy']\n", ini=ini)
+        result = pytester.runpytest('--collect-only', '-q')
+        assert any('static: mypy' in line for line in result.outlines)
+        assert not any('static: pyright' in line for line in result.outlines)
+
+    def test_an_ini_option_fills_a_key_the_table_leaves_out(self, table_project):
+        ini = "\n[tool.pytest.ini_options]\ntype_assert_checkers = 'pyright'\n"
+        pytester = table_project("cases = 'cases'\n", ini=ini)
+        result = pytester.runpytest('--collect-only', '-q')
+        assert any('static: pyright' in line for line in result.outlines)
+        assert not any('static: mypy' in line for line in result.outlines)
+
+    def test_a_command_line_override_takes_precedence(self, table_project):
+        pytester = table_project("cases = 'cases'\ncheckers = ['mypy']\n")
+        result = pytester.runpytest('-o', 'type_assert_checkers=pyright', '--collect-only', '-q')
+        assert any('static: pyright' in line for line in result.outlines)
+        assert not any('static: mypy' in line for line in result.outlines)
+
+    def test_an_unknown_key_is_a_usage_error(self, table_project):
+        result = table_project("cases = 'cases'\ncheker = ['mypy']\n").runpytest()
+        assert result.ret == pytest.ExitCode.USAGE_ERROR
+        result.stderr.fnmatch_lines(["*unknown [[]tool.type-assert[]] key 'cheker'*"])
+
+    @pytest.mark.parametrize(
+        ('table', 'message'),
+        [
+            ('cases = 1\n', '*cases must be a string, got 1*'),
+            ("cases = 'cases'\ncheckers = 'mypy'\n", '*checkers must be a list of strings*'),
+            ("cases = 'cases'\nmypy-args = [1]\n", '*mypy-args must be a list of strings*'),
+        ],
+    )
+    def test_a_value_of_the_wrong_type_is_a_usage_error(self, table_project, table, message):
+        result = table_project(table).runpytest()
+        assert result.ret == pytest.ExitCode.USAGE_ERROR
+        result.stderr.fnmatch_lines([message])
+
+    def test_the_table_is_ignored_without_the_plugin(self, table_project):
+        # pytest checks its ini options against the registered ones, never this table.
+        pytester = table_project("cases = 'cases'\n")
+        result = pytester.runpytest('-p', 'no:type_assert', '--strict-config')
+        assert result.ret == pytest.ExitCode.NO_TESTS_COLLECTED
