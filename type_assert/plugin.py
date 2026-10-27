@@ -18,11 +18,16 @@ per configured checker.
 from __future__ import annotations
 
 from pathlib import Path
-import tomllib
+import sys
 import traceback
 from typing import TYPE_CHECKING
 
 import pytest
+
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
 
 from ._cases import CaseSkipped
 from ._cases import collect_case_file

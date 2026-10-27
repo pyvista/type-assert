@@ -79,7 +79,7 @@ tests/typing/cases/basics.py::sorted({'b', 'a'}) -> list[str] [static]
 ## How `assert_types` does both
 
 To a type checker, `assert_types` *is*
-[`typing.assert_type`](https://docs.python.org/3/library/typing.html#typing.assert_type),
+[`typing_extensions.assert_type`](https://typing-extensions.readthedocs.io/en/latest/#typing_extensions.assert_type),
 aliased under `TYPE_CHECKING`. Checkers resolve an aliased import back to its original
 definition, so the special case still applies: the inferred type must match the second
 argument **exactly**, and a supertype is a failure rather than a pass.

@@ -6,8 +6,9 @@ import ast
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Never
 from typing import NoReturn
+
+from typing_extensions import Never
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
