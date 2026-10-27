@@ -16,7 +16,6 @@ classifiers = [
   'Operating System :: Microsoft :: Windows',
   'Operating System :: POSIX :: Linux',
   'Programming Language :: Python :: 3',
-  'Programming Language :: Python :: 3.10',
   'Programming Language :: Python :: 3.11',
   'Programming Language :: Python :: 3.12',
   'Programming Language :: Python :: 3.13',
@@ -25,19 +24,14 @@ classifiers = [
   'Topic :: Software Development :: Testing',
   'Typing :: Typed',
 ]
-dependencies = [
-  'pycroscope>=0.5,<0.6',
-  'pytest>=7',
-  'tomli>=1.1; python_version < "3.11"',
-  'typing-extensions>=4.5',
-]
+dependencies = ['pycroscope>=0.5,<0.6', 'pytest>=7', 'typing-extensions>=4.5']
 description = 'pytest plugin that checks a value static type and its runtime type in one assertion'
 dynamic = ['version']
 keywords = ['annotations', 'mypy', 'pyright', 'pytest', 'typing']
 license = 'MIT'
 name = 'type-assert'
 readme = 'README.md'
-requires-python = '>=3.10'
+requires-python = '>=3.11'
 
 [project.entry-points.pytest11]
 type_assert = 'type_assert.plugin'
