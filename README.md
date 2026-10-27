@@ -159,7 +159,7 @@ The checker still sees the exact type; the value is checked against the stand-in
 
 ```toml
 [tool.type-assert]
-checkers = ['mypy']                       # the default
+checkers = ['mypy'] # the default
 checkers = ['pyright']
 checkers = ['mypy', 'pyright', 'pyrefly'] # each with its own test
 ```
