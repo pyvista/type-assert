@@ -154,9 +154,9 @@ The checker still sees the exact type; the value is checked against the stand-in
 
 ```toml
 [tool.pytest.ini_options]
-type_assert_checkers = 'mypy'                   # the default
+type_assert_checkers = 'mypy' # the default
 type_assert_checkers = 'pyright'
-type_assert_checkers = 'mypy pyright pyrefly'   # each with its own test
+type_assert_checkers = 'mypy pyright pyrefly' # each with its own test
 ```
 
 Naming more than one gives every case a static test per checker, so a case has to hold
