@@ -3,9 +3,12 @@
 Registered as a pytest plugin by entry point, so a project only has to say where
 its cases live::
 
-    [tool.pytest.ini_options]
-    type_assert_cases = 'tests/typing/cases'
-    type_assert_checkers = 'mypy pyright'
+    [tool.type-assert]
+    cases = 'tests/typing/cases'
+    checkers = ['mypy', 'pyright']
+
+The same settings are read from pytest's own configuration as ``type_assert_*`` ini
+options, which take precedence.
 
 Each case file then collects as a test file of its own: one `setup` test for the
 lines that are not cases, one runtime test per case, and one static test per case
@@ -15,10 +18,16 @@ per configured checker.
 from __future__ import annotations
 
 from pathlib import Path
+import sys
 import traceback
 from typing import TYPE_CHECKING
 
 import pytest
+
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
 
 from ._cases import CaseSkipped
 from ._cases import collect_case_file
@@ -35,6 +44,8 @@ if TYPE_CHECKING:
 CASES_INI = 'type_assert_cases'
 CHECKERS_INI = 'type_assert_checkers'
 DEFAULT_CHECKERS = ('mypy',)
+TABLE = 'type-assert'
+_TABLE_STASH = pytest.StashKey['dict[str, str | list[str]]']()
 
 _DIAGNOSTICS = '_type_assert_diagnostics'
 
@@ -73,20 +84,83 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         )
 
 
+def pytest_configure(config: pytest.Config) -> None:
+    """Read the `[tool.type-assert]` table up front, so a bad one stops the run."""
+    _table(config)
+
+
 def checker_args_ini(checker_name: str) -> str:
     """Return the ini option holding extra arguments for `checker_name`."""
     return f'type_assert_{checker_name}_args'
 
 
+def table_args_key(checker_name: str) -> str:
+    """Return the `[tool.type-assert]` key holding extra arguments for `checker_name`."""
+    return f'{checker_name}-args'
+
+
+def _table(config: pytest.Config) -> dict[str, str | list[str]]:
+    """Return the validated `[tool.type-assert]` table of the rootdir's pyproject.toml."""
+    if _TABLE_STASH in config.stash:
+        return config.stash[_TABLE_STASH]
+    path = Path(config.rootpath) / 'pyproject.toml'
+    raw: dict[str, object] = {}
+    if path.is_file():
+        with path.open('rb') as file:
+            raw = tomllib.load(file).get('tool', {}).get(TABLE, {})
+    list_keys = {'checkers', *(table_args_key(name) for name in CHECKERS)}
+    table: dict[str, str | list[str]] = {}
+    for key, value in raw.items():
+        if key == 'cases' and isinstance(value, str):
+            table[key] = value
+        elif key in list_keys and isinstance(value, list):
+            items: list[object] = value
+            if not all(isinstance(item, str) for item in items):
+                msg = f'{path}: [tool.{TABLE}] {key} must be a list of strings, got {value!r}.'
+                raise pytest.UsageError(msg)
+            table[key] = [str(item) for item in items]
+        elif key == 'cases' or key in list_keys:
+            kind = 'a string' if key == 'cases' else 'a list of strings'
+            msg = f'{path}: [tool.{TABLE}] {key} must be {kind}, got {value!r}.'
+            raise pytest.UsageError(msg)
+        else:
+            msg = f'{path}: unknown [tool.{TABLE}] key {key!r}.'
+            raise pytest.UsageError(msg)
+    config.stash[_TABLE_STASH] = table
+    return table
+
+
+def _ini_is_set(config: pytest.Config, name: str) -> bool:
+    """Tell whether an ini option is given in pytest's configuration or with `-o`."""
+    overrides = config.getoption('override_ini', None) or []
+    return name in config.inicfg or any(item.split('=', 1)[0] == name for item in overrides)
+
+
+def _list_setting(config: pytest.Config, ini_name: str, key: str) -> list[str]:
+    """Return a list setting from pytest's configuration, else the table, else the default."""
+    value = _table(config).get(key)
+    if isinstance(value, list) and not _ini_is_set(config, ini_name):
+        return value
+    return [str(item) for item in config.getini(ini_name)]
+
+
 def configured_checkers(config: pytest.Config) -> list[str]:
     """Return the names of the checkers the cases are checked with."""
-    names = [str(name) for name in config.getini(CHECKERS_INI) if str(name).strip()]
+    names = [name for name in _list_setting(config, CHECKERS_INI, 'checkers') if name.strip()]
     return names or list(DEFAULT_CHECKERS)
+
+
+def checker_args(config: pytest.Config, checker_name: str) -> list[str]:
+    """Return the extra command line arguments for `checker_name`."""
+    return _list_setting(config, checker_args_ini(checker_name), table_args_key(checker_name))
 
 
 def cases_dir(config: pytest.Config) -> Path | None:
     """Return the configured cases directory, or `None` when unset."""
-    configured = str(config.getini(CASES_INI)).strip()
+    value = _table(config).get('cases')
+    if not isinstance(value, str) or _ini_is_set(config, CASES_INI):
+        value = str(config.getini(CASES_INI))
+    configured = value.strip()
     if not configured:
         return None
     return (Path(config.rootpath) / configured).resolve()
@@ -138,7 +212,7 @@ def _diagnostics(config: pytest.Config, checker_name: str) -> dict[Path, list[Di
                 '.'.join(directory.relative_to(root).parts),
                 root=root,
                 cache_dir=root / '.mypy_cache' / f'type_assert-{checker_name}',
-                extra_args=[str(arg) for arg in config.getini(checker_args_ini(checker_name))],
+                extra_args=checker_args(config, checker_name),
                 sources={
                     case_file.path: case_file.checked_source
                     for case_file in collect_cases(directory)

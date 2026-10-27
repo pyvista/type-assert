@@ -33,9 +33,14 @@ already uses.
 Put a directory of case files somewhere in your test tree and point the plugin at it:
 
 ```toml
-[tool.pytest.ini_options]
-type_assert_cases = 'tests/typing/cases'
+[tool.type-assert]
+cases = 'tests/typing/cases'
 ```
+
+Each setting can also be given as a pytest ini option (`type_assert_cases`,
+`type_assert_checkers`, `type_assert_<checker>_args`), which takes precedence over the
+table. pytest checks only its own options, so the table stays valid where the plugin is
+not installed.
 
 Every `.py` file under that directory is a case file, subdirectories included, so cases
 can be grouped the way the package they exercise is.
@@ -153,10 +158,10 @@ The checker still sees the exact type; the value is checked against the stand-in
 ## Choosing a checker
 
 ```toml
-[tool.pytest.ini_options]
-type_assert_checkers = 'mypy'                   # the default
-type_assert_checkers = 'pyright'
-type_assert_checkers = 'mypy pyright pyrefly'   # each with its own test
+[tool.type-assert]
+checkers = ['mypy']                       # the default
+checkers = ['pyright']
+checkers = ['mypy', 'pyright', 'pyrefly'] # each with its own test
 ```
 
 Naming more than one gives every case a static test per checker, so a case has to hold
@@ -171,6 +176,14 @@ cases/basics.py::sorted({'b', 'a'}) -> list[str] [static: pyright]
 The runtime test is not repeated, since the value does not depend on who checked it.
 Bear in mind that two checkers do not always infer the same type for the same
 expression, so a case that satisfies one may need rewording to satisfy both.
+
+Each checker reads the project's own configuration. Arguments for the cases alone go in
+`<checker>-args`:
+
+```toml
+[tool.type-assert]
+mypy-args = ['--warn-unused-ignores']
+```
 
 `ty` is deliberately not supported yet: it is pre-1.0 and its output format is still
 moving. Adding a backend is a single module — see `type_assert/_checkers/`.

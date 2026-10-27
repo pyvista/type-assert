@@ -25,7 +25,12 @@ classifiers = [
   'Topic :: Software Development :: Testing',
   'Typing :: Typed',
 ]
-dependencies = ['pycroscope>=0.5,<0.6', 'pytest>=7', 'typing-extensions>=4.5']
+dependencies = [
+  'pycroscope>=0.5,<0.6',
+  'pytest>=7',
+  'tomli>=1.1; python_version < "3.11"',
+  'typing-extensions>=4.5',
+]
 description = 'pytest plugin that checks a value static type and its runtime type in one assertion'
 dynamic = ['version']
 keywords = ['annotations', 'mypy', 'pyright', 'pytest', 'typing']
