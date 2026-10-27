@@ -138,7 +138,7 @@ def test_cases_are_independent_of_each_other(project):
 @pytest.mark.parametrize('checker', ['mypy', 'pyright'])
 def test_a_skip_block_skips_only_its_runtime_half(project, checker):
     source = (
-        'from typing_extensions import Never\n\n'
+        'from typing import Never\n\n'
         'from type_assert import assert_types\n'
         'from type_assert import skip_runtime\n\n\n'
         'def boom() -> Never:\n'
@@ -156,7 +156,7 @@ QUOTED_NEVER = (
     'from typing import TYPE_CHECKING\n\n'
     'from type_assert import assert_types\n\n'
     'if TYPE_CHECKING:\n'
-    '    from typing_extensions import Never\n\n\n'
+    '    from typing import Never\n\n\n'
     'def empty() -> list[Never]:\n'
     '    return []\n\n\n'
     "assert_types(empty(), 'list[Never]')\n"
@@ -432,10 +432,10 @@ def test_a_setup_that_raises_reports_the_line_it_raised_on(project):
 
 
 AFTER_NEVER = """\
+from typing import Never
 from typing import NoReturn
 
 from type_assert import assert_types
-from typing_extensions import Never
 
 
 def boom() -> NoReturn:
